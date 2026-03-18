@@ -1,0 +1,9 @@
+Package: com.yourname.netshortunlock
+Name: NetShort Unlocker
+Depends: mobilesubstrate
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Unlock all episodes and VIP features for NetShort.
+Maintainer: YourName
+Author: YourName
+Section: Tweaks
