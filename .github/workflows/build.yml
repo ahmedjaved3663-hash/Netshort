@@ -1,35 +1,30 @@
 name: Build NetShort Tweak
-
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: macos-latest
-
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Setup Theos
         uses: Randomblock1/theos-action@v1
         with:
           theos-src: 'https://github.com/theos/theos'
+          theos-sdks: 'https://github.com/theos/sdks'
 
-      - name: Checkout iOS SDKs
-        run: |
-          git clone --quiet https://github.com/theos/sdks.git $THEOS/sdks
-
-      - name: Build Tweak
+      - name: Build Dylib
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          make package FINALPACKAGE=1
-        
-      - name: Upload Artifact
+          export PATH=$THEOS/bin:$PATH
+          make FINALPACKAGE=1
+          
+          # This finds the dylib and moves it to the main folder for easy upload
+          find .theos/obj -name "NetShortUnlock.dylib" -exec cp {} $GITHUB_WORKSPACE/NetShortUnlock.dylib \;
+
+      - name: Upload Result
         uses: actions/upload-artifact@v4
         with:
-          name: NetShortUnlock-Dylib
-          path: .theos/obj/main/*.dylib
+          name: NetShort-Unlocked-Dylib
+          path: NetShortUnlock.dylib
