@@ -1,37 +1,40 @@
 #import <UIKit/UIKit.h>
 
-// 1. Hooking the User/VIP status based on ZF prefix
-%hook ZFUserModel
+// 1. Hooking the User/Account info
+%hook NSUserModel
 - (BOOL)isVip { return YES; }
 - (BOOL)isPremium { return YES; }
 - (NSInteger)vipLevel { return 10; }
+- (long long)coinBalance { return 999999; }
+// Adding setters to ensure server data doesn't overwrite our hack
 - (void)setIsVip:(BOOL)arg1 { %orig(YES); }
 %end
 
-// 2. Hooking the Episode Unlock logic
-%hook ZFDramaEpisodeModel
+// 2. Hooking the Episode Data
+%hook NSDramaEpisodeModel
 - (BOOL)isLocked { return NO; }
-- (BOOL)is_free { return YES; }
+- (BOOL)isUnlocked { return YES; }
+- (BOOL)isFree { return YES; }
+- (NSInteger)price { return 0; }
+// Intercepting the server response setter
 - (void)setIsLocked:(BOOL)arg1 { %orig(NO); }
-- (void)setPrice:(NSInteger)arg1 { %orig(0); }
 %end
 
-// 3. Bypassing the Payment check that causes the loading wheel
-%hook ZFPaymentManager
-- (BOOL)checkEpisodeIsBought:(id)arg1 {
-    return YES;
-}
-- (void)buyEpisode:(id)arg1 completion:(void (^)(BOOL success))completion {
+// 3. Killing the Payment Check (The "Infinite Loading" Fix)
+%hook NSPayManager
+- (BOOL)checkEpisodeIsBought:(id)arg1 { return YES; }
+- (void)payWithProduct:(id)product completion:(void (^)(BOOL success, id error))completion {
     if (completion) {
-        completion(YES); // Force a "Success" signal to stop the loading spinner
+        completion(YES, nil); // Force immediate success
     }
 }
 %end
 
-// 4. Force the Player to ignore local "Lock" states
-%hook ZFDramaDetailViewController
-- (BOOL)shouldShowPayPopup { return NO; }
-- (void)presentPayView { 
-    // Do nothing - prevents the coin popup from appearing
+// 4. Force Video Player to Play
+%hook NSVideoPlayerManager
+- (void)checkPlayPermission:(id)episode completion:(void (^)(BOOL canPlay))completion {
+    if (completion) {
+        completion(YES); // Tell the UI it's safe to play
+    }
 }
 %end
