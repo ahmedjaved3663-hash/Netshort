@@ -1,40 +1,44 @@
 #import <UIKit/UIKit.h>
 
-// 1. Hooking the Network Data Parser
-// This is the "Master Key" - it tells the app that every episode it just 
-// heard about from the server is actually free.
-%hook NSDramaEpisodeModel
-- (void)setIs_locked:(BOOL)arg1 {
-    %orig(NO); // Force the 'locked' value to NO whenever the server tries to set it
+// 1. Hooking the Global Data Parser
+// This is a powerful "Wildcard" hook. It checks if any data coming in 
+// has a 'lock' status and forces it to 'NO'.
+%hook NSObject
+- (BOOL)isLocked {
+    // If the class name contains "Episode" or "Drama", force unlock
+    NSString *className = NSStringFromClass([self class]);
+    if ([className containsString:@"Episode"] || [className containsString:@"Drama"] || [className containsString:@"Video"]) {
+        return NO;
+    }
+    return %orig;
 }
 
-- (void)setIs_free:(BOOL)arg1 {
-    %orig(YES); // Force the 'free' value to YES
-}
-
-- (BOOL)isLocked { return NO; }
-- (BOOL)isUnlocked { return YES; }
-%end
-
-// 2. The Loading Spinner Fix
-// This tells the "Order Manager" that any episode check is already paid for.
-%hook NSOrderManager
-- (BOOL)checkEpisodeBoughtWithId:(id)arg1 {
-    return YES;
+- (BOOL)is_free {
+    NSString *className = NSStringFromClass([self class]);
+    if ([className containsString:@"Episode"] || [className containsString:@"Drama"]) {
+        return YES;
+    }
+    return %orig;
 }
 %end
 
-// 3. User VIP Status
+// 2. Hooking the User/VIP status
 %hook NSUserModel
 - (BOOL)isVip { return YES; }
+- (BOOL)isPremium { return YES; }
 - (NSInteger)vipLevel { return 10; }
 %end
 
-// 4. Force Video Player to ignore "Permission" checks
+// 3. Bypassing the Ad-blocker (often required for some "Free" episodes)
+%hook PAGAdSDKManager
++ (BOOL)isReady { return NO; }
+%end
+
+// 4. Forcing the Player to start
 %hook NSVideoPlayerManager
-- (void)verifyPlayPermission:(id)episode completion:(void (^)(BOOL silver))completion {
+- (void)checkPlayPermission:(id)arg1 completion:(void (^)(BOOL canPlay))completion {
     if (completion) {
-        completion(YES); // Tell the player it has permission immediately
+        completion(YES); // Tell the app "Yes, the user can play this" immediately
     }
 }
 %end
