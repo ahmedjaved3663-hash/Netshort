@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # Allows you to run it manually
+  workflow_dispatch:
 
 jobs:
   build:
@@ -18,7 +18,10 @@ jobs:
         uses: Randomblock1/theos-action@v1
         with:
           theos-src: 'https://github.com/theos/theos'
-          theos-sdks: 'https://github.com/theos/sdks'
+
+      - name: Checkout iOS SDKs
+        run: |
+          git clone --quiet https://github.com/theos/sdks.git $THEOS/sdks
 
       - name: Build Tweak
         run: |
@@ -29,4 +32,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: NetShortUnlock-Dylib
-          path: .theos/obj/debug/*.dylib
+          path: .theos/obj/main/*.dylib
