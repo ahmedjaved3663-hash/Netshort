@@ -1,31 +1,14 @@
 #import <UIKit/UIKit.h>
 
-// 1. Hooking the Base Data Model (Targeting all potential drama models)
-%hook NSObject
-- (BOOL)is_locked {
-    // Many apps use this internal property across different classes
-    if ([NSStringFromClass([self class]) containsString:@"Drama"] || 
-        [NSStringFromClass([self class]) containsString:@"Video"]) {
-        return NO;
-    }
-    return %orig;
-}
-
-- (BOOL)is_vip {
-    if ([NSStringFromClass([self class]) containsString:@"User"]) {
-        return YES;
-    }
-    return %orig;
-}
-%end
-
-// 2. Targeting the specific 'NS' prefix (NetShort's internal prefix)
+// 1. Force User to VIP
 %hook NSUserModel
 - (BOOL)isVip { return YES; }
+- (BOOL)isPremium { return YES; }
 - (NSInteger)vipLevel { return 10; }
-- (long long)coinBalance { return 888888; }
+- (long long)coinBalance { return 999999; }
 %end
 
+// 2. Force Episode to be Unlocked
 %hook NSDramaEpisodeModel
 - (BOOL)isLocked { return NO; }
 - (BOOL)isUnlocked { return YES; }
@@ -33,16 +16,17 @@
 - (NSInteger)price { return 0; }
 %end
 
-// 3. Force-close the Purchase Popup
-// This stops the infinite loading by preventing the view from ever initializing
+// 3. Prevent the "Unlock" Popup from staying on screen
 %hook NSUnlockEpisodePopView
-- (void)layoutSubviews {
+- (void)didMoveToWindow {
     %orig;
-    [self removeFromSuperview]; // Immediately kill the popup if it tries to show
+    // Hide the view as soon as it is added to the screen
+    self.hidden = YES;
+    [self removeFromSuperview];
 }
 %end
 
-// 4. Hooking the Playback Decision Manager
+// 4. Force Playback Logic
 %hook NSPlayDetailManager
 - (BOOL)canPlayEpisode:(id)arg1 {
     return YES;
