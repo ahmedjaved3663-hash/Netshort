@@ -1,21 +1,28 @@
 #import <UIKit/UIKit.h>
 
-// This targets the specific internal variables often used in 2.1.5
-%hook NSDramaEpisodeModel
-- (NSInteger)is_locked { return 0; } 
-- (NSInteger)unlock_type { return 0; }
-- (BOOL)is_free { return YES; }
-- (void)setIs_locked:(NSInteger)arg1 { %orig(0); }
+%hook NSObject
+- (id)init {
+    id result = %orig;
+    NSString *className = NSStringFromClass([result class]);
+    
+    // We only care about names that might handle unlocking
+    if ([className containsString:@"Drama"] || 
+        [className containsString:@"Episode"] || 
+        [className containsString:@"User"] || 
+        [className containsString:@"Member"]) {
+        NSLog(@"[NetShortLog] Found Class: %@", className);
+    }
+    return result;
+}
 %end
 
-%hook NSUserModel
-- (NSInteger)is_vip { return 1; }
-- (NSInteger)vip_level { return 10; }
-%end
-
-// This targets the "Coin" check directly
-%hook NSCoinManager
-- (BOOL)checkCanPlayWithDramaId:(id)arg1 episodeId:(id)arg2 {
-    return YES;
+// A generic "Catch-All" to try one last broad unlock while logging
+%hook UIView
+- (void)didMoveToWindow {
+    %orig;
+    if ([NSStringFromClass([self class]) containsString:@"Lock"]) {
+        NSLog(@"[NetShortLog] Found a Lock View: %@", NSStringFromClass([self class]));
+        self.hidden = YES; // Try to hide any view with "Lock" in the name
+    }
 }
 %end
