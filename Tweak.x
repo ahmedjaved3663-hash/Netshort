@@ -1,44 +1,44 @@
 #import <UIKit/UIKit.h>
 
-// 1. Hooking the Global Data Parser
-// This is a powerful "Wildcard" hook. It checks if any data coming in 
-// has a 'lock' status and forces it to 'NO'.
-%hook NSObject
-- (BOOL)isLocked {
-    // If the class name contains "Episode" or "Drama", force unlock
-    NSString *className = NSStringFromClass([self class]);
-    if ([className containsString:@"Episode"] || [className containsString:@"Drama"] || [className containsString:@"Video"]) {
-        return NO;
-    }
-    return %orig;
+// 1. Hooking the Data Parser
+// This intercepts the data as it's being converted from JSON to a Model
+%hook NSDramaEpisodeModel
+- (void)setIs_locked:(BOOL)arg1 {
+    %orig(NO); // Force every episode to be 'unlocked' in the data layer
 }
 
-- (BOOL)is_free {
-    NSString *className = NSStringFromClass([self class]);
-    if ([className containsString:@"Episode"] || [className containsString:@"Drama"]) {
-        return YES;
-    }
-    return %orig;
+- (void)setPrice:(NSInteger)arg1 {
+    %orig(0); // Force price to 0
 }
+
+- (BOOL)isLocked { return NO; }
+- (BOOL)isUnlocked { return YES; }
 %end
 
-// 2. Hooking the User/VIP status
+// 2. Hooking the User Response
+// This tells the app the server said "This user is a VIP"
 %hook NSUserModel
+- (void)setIs_vip:(BOOL)arg1 {
+    %orig(YES);
+}
 - (BOOL)isVip { return YES; }
-- (BOOL)isPremium { return YES; }
 - (NSInteger)vipLevel { return 10; }
 %end
 
-// 3. Bypassing the Ad-blocker (often required for some "Free" episodes)
-%hook PAGAdSDKManager
-+ (BOOL)isReady { return NO; }
+// 3. The "Infinite Loading" Fix
+// This forces the "Permission" check to return a success token immediately 
+// without waiting for the server to reply.
+%hook NSVideoPlayerManager
+- (void)checkPlayPermission:(id)episode completion:(void (^)(BOOL success))completion {
+    if (completion) {
+        completion(YES); // Force success to kill the loading spinner
+    }
+}
 %end
 
-// 4. Forcing the Player to start
-%hook NSVideoPlayerManager
-- (void)checkPlayPermission:(id)arg1 completion:(void (^)(BOOL canPlay))completion {
-    if (completion) {
-        completion(YES); // Tell the app "Yes, the user can play this" immediately
-    }
+// 4. Removing the Payment Popup
+%hook NSUnlockEpisodePopView
+- (void)showInView:(id)view {
+    // Emptying this prevents the popup from ever appearing
 }
 %end
