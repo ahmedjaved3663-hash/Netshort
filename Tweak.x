@@ -1,34 +1,41 @@
 #import <UIKit/UIKit.h>
 
-// Hooking the User Model to force VIP status
-%hook NSUserModel 
+// 1. Hooking the User/Account info
+// Apps often use "Member" or "User" classes. 
+%hook BBUserModel
 - (BOOL)isVip {
-    return YES; // Always returns true for VIP checks
+    return YES;
 }
-
 - (BOOL)isPremium {
     return YES;
 }
+%end
 
-- (long long)coinBalance {
-    return 999999; // Set a visual high balance
+// 2. Hooking the Episode unlock logic
+// This is usually where the "Lock" icon is controlled.
+%hook BBVideoModel
+- (BOOL)isLock {
+    return NO;
+}
+- (BOOL)is_free {
+    return YES;
+}
+- (NSInteger)price {
+    return 0;
 }
 %end
 
-// Hooking the Episode Manager to bypass "Lock" status
-%hook NSEpisodeModel
-- (BOOL)isLocked {
-    return NO; // Force every episode to report as 'unlocked'
-}
-
-- (NSInteger)unlockPrice {
-    return 0; // Set price to 0 coins
+// 3. Hooking the Playback Manager
+// This forces the player to start even if the server hasn't "confirmed" payment.
+%hook BBPlayerManager
+- (BOOL)canPlayVideo:(id)arg1 {
+    return YES;
 }
 %end
 
-// Optional: Bypass Ad-checkers if they interfere
-%hook PAGAdSDK
-- (BOOL)isAdReady {
-    return NO; 
+// 4. Removing Ads (Optional but helpful)
+%hook BUAdSDKManager
++ (BOOL)isReady {
+    return NO;
 }
 %end
