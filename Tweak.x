@@ -1,23 +1,29 @@
 #import <UIKit/UIKit.h>
 
 // 1. Hooking the User/Account info
-// Apps often use "Member" or "User" classes. 
-%hook BBUserModel
+// This forces the "VIP" badge and premium status
+%hook NSUserModel
 - (BOOL)isVip {
     return YES;
 }
 - (BOOL)isPremium {
     return YES;
 }
+- (NSInteger)vipLevel {
+    return 10;
+}
 %end
 
-// 2. Hooking the Episode unlock logic
-// This is usually where the "Lock" icon is controlled.
-%hook BBVideoModel
-- (BOOL)isLock {
+// 2. Hooking the Drama/Video Data
+// This tells the app that every episode is already "Purchased" or "Free"
+%hook NSDramaEpisodeModel
+- (BOOL)isLocked {
     return NO;
 }
-- (BOOL)is_free {
+- (BOOL)isUnlocked {
+    return YES;
+}
+- (BOOL)isFree {
     return YES;
 }
 - (NSInteger)price {
@@ -25,16 +31,16 @@
 }
 %end
 
-// 3. Hooking the Playback Manager
-// This forces the player to start even if the server hasn't "confirmed" payment.
-%hook BBPlayerManager
-- (BOOL)canPlayVideo:(id)arg1 {
-    return YES;
+// 3. Hooking the Controller that handles the "Lock" UI
+// This hides the coin-payment popup entirely
+%hook NSDramaDetailViewController
+- (BOOL)isEpisodeLocked:(id)arg1 {
+    return NO;
 }
 %end
 
-// 4. Removing Ads (Optional but helpful)
-%hook BUAdSDKManager
+// 4. Hooking the Ad SDK to prevent forced ads during playback
+%hook PAGAdSDKManager
 + (BOOL)isReady {
     return NO;
 }
