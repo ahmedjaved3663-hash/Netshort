@@ -1,28 +1,37 @@
 #import <UIKit/UIKit.h>
 
-%hook NSObject
-- (id)init {
-    id result = %orig;
-    NSString *className = NSStringFromClass([result class]);
-    
-    // We only care about names that might handle unlocking
-    if ([className containsString:@"Drama"] || 
-        [className containsString:@"Episode"] || 
-        [className containsString:@"User"] || 
-        [className containsString:@"Member"]) {
-        NSLog(@"[NetShortLog] Found Class: %@", className);
+// 1. Hooking the User/VIP status based on ZF prefix
+%hook ZFUserModel
+- (BOOL)isVip { return YES; }
+- (BOOL)isPremium { return YES; }
+- (NSInteger)vipLevel { return 10; }
+- (void)setIsVip:(BOOL)arg1 { %orig(YES); }
+%end
+
+// 2. Hooking the Episode Unlock logic
+%hook ZFDramaEpisodeModel
+- (BOOL)isLocked { return NO; }
+- (BOOL)is_free { return YES; }
+- (void)setIsLocked:(BOOL)arg1 { %orig(NO); }
+- (void)setPrice:(NSInteger)arg1 { %orig(0); }
+%end
+
+// 3. Bypassing the Payment check that causes the loading wheel
+%hook ZFPaymentManager
+- (BOOL)checkEpisodeIsBought:(id)arg1 {
+    return YES;
+}
+- (void)buyEpisode:(id)arg1 completion:(void (^)(BOOL success))completion {
+    if (completion) {
+        completion(YES); // Force a "Success" signal to stop the loading spinner
     }
-    return result;
 }
 %end
 
-// A generic "Catch-All" to try one last broad unlock while logging
-%hook UIView
-- (void)didMoveToWindow {
-    %orig;
-    if ([NSStringFromClass([self class]) containsString:@"Lock"]) {
-        NSLog(@"[NetShortLog] Found a Lock View: %@", NSStringFromClass([self class]));
-        self.hidden = YES; // Try to hide any view with "Lock" in the name
-    }
+// 4. Force the Player to ignore local "Lock" states
+%hook ZFDramaDetailViewController
+- (BOOL)shouldShowPayPopup { return NO; }
+- (void)presentPayView { 
+    // Do nothing - prevents the coin popup from appearing
 }
 %end
