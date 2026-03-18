@@ -1,40 +1,42 @@
 #import <UIKit/UIKit.h>
 
-// 1. Hooking the User/Account info
-%hook NSUserModel
-- (BOOL)isVip { return YES; }
-- (BOOL)isPremium { return YES; }
-- (NSInteger)vipLevel { return 10; }
-- (long long)coinBalance { return 999999; }
-// Adding setters to ensure server data doesn't overwrite our hack
-- (void)setIsVip:(BOOL)arg1 { %orig(YES); }
-%end
-
-// 2. Hooking the Episode Data
+// 1. Hooking the Core Data Model
 %hook NSDramaEpisodeModel
 - (BOOL)isLocked { return NO; }
 - (BOOL)isUnlocked { return YES; }
 - (BOOL)isFree { return YES; }
 - (NSInteger)price { return 0; }
-// Intercepting the server response setter
+
+// Use setters to force the value the moment it's loaded from the server
 - (void)setIsLocked:(BOOL)arg1 { %orig(NO); }
+- (void)setPrice:(NSInteger)arg1 { %orig(0); }
 %end
 
-// 3. Killing the Payment Check (The "Infinite Loading" Fix)
+// 2. Hooking the User Profile
+%hook NSUserModel
+- (BOOL)isVip { return YES; }
+- (BOOL)isPremium { return YES; }
+- (NSInteger)vipLevel { return 10; }
+- (void)setIsVip:(BOOL)arg1 { %orig(YES); }
+%end
+
+// 3. Bypassing the Payment Logic (The Spinner Fix)
 %hook NSPayManager
-- (BOOL)checkEpisodeIsBought:(id)arg1 { return YES; }
+- (BOOL)checkEpisodeIsBought:(id)arg1 {
+    return YES;
+}
 - (void)payWithProduct:(id)product completion:(void (^)(BOOL success, id error))completion {
     if (completion) {
-        completion(YES, nil); // Force immediate success
+        completion(YES, nil); // Force an immediate "Success" signal
     }
 }
 %end
 
-// 4. Force Video Player to Play
-%hook NSVideoPlayerManager
-- (void)checkPlayPermission:(id)episode completion:(void (^)(BOOL canPlay))completion {
-    if (completion) {
-        completion(YES); // Tell the UI it's safe to play
-    }
+// 4. Force the Player to ignore "Locked" UI states
+%hook NSDramaDetailViewController
+- (BOOL)shouldShowPayPopup { return NO; }
+- (void)setupBottomView {
+    %orig;
+    // This often removes the "Unlock" button from the bottom of the screen
 }
 %end
