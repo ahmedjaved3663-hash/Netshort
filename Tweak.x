@@ -1,34 +1,31 @@
 #import <UIKit/UIKit.h>
 
-// 1. Force User to VIP
+// 1. Hooking the User Model
 %hook NSUserModel
 - (BOOL)isVip { return YES; }
 - (BOOL)isPremium { return YES; }
 - (NSInteger)vipLevel { return 10; }
-- (long long)coinBalance { return 999999; }
 %end
 
-// 2. Force Episode to be Unlocked
+// 2. Hooking the Episode Data
 %hook NSDramaEpisodeModel
 - (BOOL)isLocked { return NO; }
 - (BOOL)isUnlocked { return YES; }
 - (BOOL)isFree { return YES; }
-- (NSInteger)price { return 0; }
 %end
 
-// 3. Prevent the "Unlock" Popup from staying on screen
+// 3. The "Infinite Loading" / Popup Fix
+// We use a different method to hide the popup that doesn't cause compiler errors
 %hook NSUnlockEpisodePopView
-- (void)didMoveToWindow {
-    %orig;
-    // Hide the view as soon as it is added to the screen
-    self.hidden = YES;
-    [self removeFromSuperview];
+- (void)setHidden:(BOOL)hidden {
+    %orig(YES); // Force it to always stay hidden
 }
 %end
 
-// 4. Force Playback Logic
-%hook NSPlayDetailManager
-- (BOOL)canPlayEpisode:(id)arg1 {
-    return YES;
+// 4. Force the Player to start regardless of server status
+%hook NSVideoPlayerController
+- (BOOL)canPlayNow { return YES; }
+- (void)checkPlayStatus {
+    // Doing nothing here prevents the app from stopping the video
 }
 %end
