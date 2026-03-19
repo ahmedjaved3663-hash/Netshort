@@ -1,8 +1,8 @@
 #import <UIKit/UIKit.h>
 
-// 1. Diagnostic Popup (Fixed for iOS 13+)
+// 1. Keep the popup so we know it's still loading
 %ctor {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         UIWindow *window = nil;
         if (@available(iOS 13.0, *)) {
             for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
@@ -12,10 +12,9 @@
                 }
             }
         }
-        
         if (window && window.rootViewController) {
-            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Tweak Active" 
-                                        message:@"Injection Successful. If episodes are locked, we need new methods." 
+            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Tweak V2 Running" 
+                                        message:@"Checking new Permission methods..." 
                                         preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
             [window.rootViewController presentViewController:alert animated:YES completion:nil];
@@ -23,23 +22,33 @@
     });
 }
 
-// 2. Core Unlocking Logic
+// 2. The "Authority" Bypass - This is the most likely culprit
+%hook NSPlayManager
+- (BOOL)hasAuthorityToPlayDramaWithId:(id)arg1 episodeId:(id)arg2 {
+    return YES;
+}
+
+- (BOOL)checkEpisodeIsUnlockedWithDramaId:(id)arg1 episodeId:(id)arg2 {
+    return YES;
+}
+%end
+
+// 3. Unlocking the Episode Model directly
 %hook NSDramaEpisodeModel
 - (BOOL)isLocked { return NO; }
 - (BOOL)is_locked { return NO; }
-- (void)setIsLocked:(BOOL)arg1 { %orig(NO); }
+- (BOOL)canWatch { return YES; }
+- (BOOL)isFree { return YES; }
 %end
 
+// 4. Forcing VIP Level
 %hook NSUserModel
 - (BOOL)isVip { return YES; }
-- (void)setIsVip:(BOOL)arg1 { %orig(YES); }
+- (NSInteger)vipLevel { return 10; }
+- (NSString *)vip_expire_time { return @"2099-12-31"; }
 %end
 
-%hook NSPlayDetailManager
-- (BOOL)checkEpisodeIsLockedWithModel:(id)arg1 { return NO; }
-%end
-
+// 5. Hiding the "Pay" buttons from the UI
 %hook NSDramaDetailViewController
 - (BOOL)shouldShowPayPopup { return NO; }
-- (void)setupBottomView { } 
 %end
