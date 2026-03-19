@@ -1,51 +1,50 @@
 #import <UIKit/UIKit.h>
 
-// 1. Hooking the Data Entry Point
-// This is where the app takes the "Locked" status from the internet.
+// 1. Force the Model to report Unlocked (Redundant but necessary)
 %hook NSDramaEpisodeModel
-- (id)initWithDictionary:(NSDictionary *)dict {
-    NSMutableDictionary *mutableDict = [dict mutableCopy];
-    
-    // Force the data to be "Unlocked" before the object is even created
-    [mutableDict setObject:@(0) forKey:@"is_locked"];
-    [mutableDict setObject:@(1) forKey:@"is_free"];
-    [mutableDict setObject:@(0) forKey:@"price"];
-    [mutableDict setObject:@(0) forKey:@"coin_price"];
-    
-    return %orig(mutableDict);
-}
-
 - (BOOL)isLocked { return NO; }
 - (BOOL)is_locked { return NO; }
-- (NSInteger)price { return 0; }
+- (BOOL)isFree { return YES; }
+- (void)setIsLocked:(BOOL)arg1 { %orig(NO); }
 %end
 
-// 2. Hooking the User Response
-%hook NSUserModel
-- (id)initWithDictionary:(NSDictionary *)dict {
-    NSMutableDictionary *mutableDict = [dict mutableCopy];
-    
-    [mutableDict setObject:@(YES) forKey:@"is_vip"];
-    [mutableDict setObject:@(10) forKey:@"vip_level"];
-    [mutableDict setObject:@"2099-12-31" forKey:@"vip_expire_time"];
-    
-    return %orig(mutableDict);
+// 2. Target the Specific UI View Controllers
+// This hides the actual "Unlock" button at the bottom of the screen
+%hook NSDramaDetailViewController
+- (void)viewDidLoad {
+    %orig;
+    // Look for subviews and hide the payment ones
+    for (UIView *subview in self.view.subviews) {
+        NSString *viewName = NSStringFromClass([subview class]);
+        if ([viewName containsString:@"Pay"] || [viewName containsString:@"Unlock"] || [viewName containsString:@"Coin"]) {
+            subview.hidden = YES;
+        }
+    }
 }
 
-- (BOOL)isVip { return YES; }
+// Bypassing the check that decides to show the bottom "Unlock" bar
+- (BOOL)shouldShowPayPopup { return NO; }
+- (BOOL)isEpisodeLocked:(id)arg1 { return NO; }
 %end
 
-// 3. The "Loading Screen" Killer
+// 3. Prevent the Payment Pop-up from even loading
 %hook NSPayManager
 - (BOOL)checkEpisodeIsBoughtWithDramaId:(id)arg1 episodeId:(id)arg2 {
     return YES;
 }
+%end
 
-// Bypassing the actual server call for a play token
-- (void)requestPlayTokenWithEpisodeId:(id)arg1 completion:(void (^)(NSString *token, id error))completion {
-    if (completion) {
-        // We provide a fake token to satisfy the player
-        completion(@"unlocked_token_bypass", nil);
+// 4. Global UI "Eraser"
+// If any view is created with these names, we kill it immediately.
+%hook UIView
+- (void)didMoveToWindow {
+    %orig;
+    NSString *className = NSStringFromClass([self class]);
+    if ([className containsString:@"NSUnlockEpisodePopView"] || 
+        [className containsString:@"NSDramaUnlockView"] || 
+        [className containsString:@"NSPaymentView"]) {
+        [self setHidden:YES];
+        [self removeFromSuperview];
     }
 }
 %end
