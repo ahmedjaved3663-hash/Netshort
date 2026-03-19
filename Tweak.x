@@ -1,38 +1,44 @@
 #import <UIKit/UIKit.h>
 
-// 1. Diagnostic Popup - Shows if the tweak is actually loaded
+// 1. Diagnostic Popup (Fixed for iOS 13+)
 %ctor {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        UIViewController *root = [UIApplication sharedApplication].keyWindow.rootViewController;
-        if (root) {
-            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Tweak Loaded" 
-                                        message:@"If episodes are still locked, we need new class names." 
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        UIWindow *window = nil;
+        if (@available(iOS 13.0, *)) {
+            for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
+                if (scene.activationState == UISceneActivationStateForegroundActive) {
+                    window = scene.windows.firstObject;
+                    break;
+                }
+            }
+        }
+        
+        if (window && window.rootViewController) {
+            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Tweak Active" 
+                                        message:@"Injection Successful. If episodes are locked, we need new methods." 
                                         preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-            [root presentViewController:alert animated:YES completion:nil];
+            [window.rootViewController presentViewController:alert animated:YES completion:nil];
         }
     });
 }
 
-// 2. Unlocking Episodes
+// 2. Core Unlocking Logic
 %hook NSDramaEpisodeModel
 - (BOOL)isLocked { return NO; }
 - (BOOL)is_locked { return NO; }
 - (void)setIsLocked:(BOOL)arg1 { %orig(NO); }
 %end
 
-// 3. Unlocking VIP status
 %hook NSUserModel
 - (BOOL)isVip { return YES; }
 - (void)setIsVip:(BOOL)arg1 { %orig(YES); }
 %end
 
-// 4. Bypassing the Ad/Lock Manager
 %hook NSPlayDetailManager
 - (BOOL)checkEpisodeIsLockedWithModel:(id)arg1 { return NO; }
 %end
 
-// 5. Hiding the "Unlock" UI buttons
 %hook NSDramaDetailViewController
 - (BOOL)shouldShowPayPopup { return NO; }
 - (void)setupBottomView { } 
