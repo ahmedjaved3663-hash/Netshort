@@ -1,39 +1,48 @@
 #import <UIKit/UIKit.h>
 
-// 1. Hooking the Episode Data
+// --- Fix for Forward Declaration Errors ---
+@interface NSDramaEpisodeModel : NSObject
+@property (assign, nonatomic) BOOL isLocked;
+@end
+
+@interface NSUserModel : NSObject
+@property (assign, nonatomic) BOOL isVip;
+@end
+
+@interface NSDramaDetailViewController : UIViewController
+@end
+
+// --- The Actual Tweak Logic ---
+
 %hook NSDramaEpisodeModel
 - (BOOL)isLocked { return NO; }
 - (BOOL)is_locked { return NO; }
 - (BOOL)isFree { return YES; }
-- (NSInteger)price { return 0; }
 - (void)setIsLocked:(BOOL)arg1 { %orig(NO); }
 %end
 
-// 2. Hooking the User Profile
 %hook NSUserModel
 - (BOOL)isVip { return YES; }
-- (NSInteger)vipLevel { return 10; }
 - (void)setIsVip:(BOOL)arg1 { %orig(YES); }
 %end
 
-// 3. Bypassing Payment Checks
 %hook NSPayManager
 - (BOOL)checkEpisodeIsBoughtWithDramaId:(id)arg1 episodeId:(id)arg2 {
     return YES;
 }
 %end
 
-// 4. Removing the "Unlock" Button from the Screen
 %hook NSDramaDetailViewController
 - (BOOL)shouldShowPayPopup { return NO; }
 
-- (void)viewWillAppear:(BOOL)animated {
-    %orig;
-    // This tells the app the episode is already owned before the screen draws
-    [self setValue:@(NO) forKey:@"isLocked"];
+// This hides the 'Watch 2 ads' and 'Unlock All' buttons seen in your screenshot
+- (void)setupBottomView {
+    // Leave empty to prevent the pay bar from rendering
 }
 
-- (void)setupBottomView {
-    // Keeping this empty prevents the "Unlock/Pay" bar from loading
+- (void)viewDidLoad {
+    %orig;
+    // Force the view to think everything is already paid for
+    [self setValue:@(NO) forKey:@"isLocked"];
 }
 %end
