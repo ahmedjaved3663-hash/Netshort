@@ -1,42 +1,51 @@
 #import <UIKit/UIKit.h>
 
-// 1. Hooking the Core Data Model
+// 1. Hooking the Data Entry Point
+// This is where the app takes the "Locked" status from the internet.
 %hook NSDramaEpisodeModel
+- (id)initWithDictionary:(NSDictionary *)dict {
+    NSMutableDictionary *mutableDict = [dict mutableCopy];
+    
+    // Force the data to be "Unlocked" before the object is even created
+    [mutableDict setObject:@(0) forKey:@"is_locked"];
+    [mutableDict setObject:@(1) forKey:@"is_free"];
+    [mutableDict setObject:@(0) forKey:@"price"];
+    [mutableDict setObject:@(0) forKey:@"coin_price"];
+    
+    return %orig(mutableDict);
+}
+
 - (BOOL)isLocked { return NO; }
-- (BOOL)isUnlocked { return YES; }
-- (BOOL)isFree { return YES; }
+- (BOOL)is_locked { return NO; }
 - (NSInteger)price { return 0; }
-
-// Use setters to force the value the moment it's loaded from the server
-- (void)setIsLocked:(BOOL)arg1 { %orig(NO); }
-- (void)setPrice:(NSInteger)arg1 { %orig(0); }
 %end
 
-// 2. Hooking the User Profile
+// 2. Hooking the User Response
 %hook NSUserModel
+- (id)initWithDictionary:(NSDictionary *)dict {
+    NSMutableDictionary *mutableDict = [dict mutableCopy];
+    
+    [mutableDict setObject:@(YES) forKey:@"is_vip"];
+    [mutableDict setObject:@(10) forKey:@"vip_level"];
+    [mutableDict setObject:@"2099-12-31" forKey:@"vip_expire_time"];
+    
+    return %orig(mutableDict);
+}
+
 - (BOOL)isVip { return YES; }
-- (BOOL)isPremium { return YES; }
-- (NSInteger)vipLevel { return 10; }
-- (void)setIsVip:(BOOL)arg1 { %orig(YES); }
 %end
 
-// 3. Bypassing the Payment Logic (The Spinner Fix)
+// 3. The "Loading Screen" Killer
 %hook NSPayManager
-- (BOOL)checkEpisodeIsBought:(id)arg1 {
+- (BOOL)checkEpisodeIsBoughtWithDramaId:(id)arg1 episodeId:(id)arg2 {
     return YES;
 }
-- (void)payWithProduct:(id)product completion:(void (^)(BOOL success, id error))completion {
-    if (completion) {
-        completion(YES, nil); // Force an immediate "Success" signal
-    }
-}
-%end
 
-// 4. Force the Player to ignore "Locked" UI states
-%hook NSDramaDetailViewController
-- (BOOL)shouldShowPayPopup { return NO; }
-- (void)setupBottomView {
-    %orig;
-    // This often removes the "Unlock" button from the bottom of the screen
+// Bypassing the actual server call for a play token
+- (void)requestPlayTokenWithEpisodeId:(id)arg1 completion:(void (^)(NSString *token, id error))completion {
+    if (completion) {
+        // We provide a fake token to satisfy the player
+        completion(@"unlocked_token_bypass", nil);
+    }
 }
 %end
